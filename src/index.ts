@@ -15,21 +15,42 @@ type UseSplTokenAccountResult = {
   error?: string;
 };
 
+type CancellablePromise<T> = Promise<T> & {
+  cancel: () => void;
+};
+
+const makeCancelable = <T>(promise: Promise<T>) => {
+  let rejectFn;
+  const wrappedPromise = new Promise((resolve, reject) => {
+    rejectFn = reject;
+    Promise.resolve(promise).then(resolve).catch(reject);
+  }) as CancellablePromise<T>;
+
+  wrappedPromise.cancel = () => {
+    rejectFn({ canceled: true });
+  };
+  return wrappedPromise;
+};
+
 export function useSplTokenAccount(
   token: Token,
   accountPubkey: PublicKey
 ): UseSplTokenAccountResult {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<AccountInfo | undefined>();
   const [error, setError] = useState<string | undefined>();
 
   useEffect(() => {
-    token
-      .getAccountInfo(accountPubkey)
+    setLoading(true);
+    setAccount(undefined);
+    setError(undefined);
+    const promise = makeCancelable(token.getAccountInfo(accountPubkey));
+    promise
       .then(setAccount)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+    return promise.cancel;
+  }, [token, accountPubkey]);
 
   return {
     loading,
