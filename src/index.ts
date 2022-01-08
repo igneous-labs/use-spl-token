@@ -4,6 +4,7 @@ import {
   MintInfo,
   MintLayout,
   Token,
+  u64,
 } from "@solana/spl-token";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { useEffect, useState } from "react";
@@ -71,22 +72,28 @@ export function useLiveSplTokenAccount(
         accountPubkey,
         (accountInfo, context) => {
           try {
-            const rawAccount = AccountLayout.decode(accountInfo.data);
+            const rawAccount = AccountLayout.decode(
+              Buffer.from(accountInfo.data)
+            );
             setAccount({
               address: accountPubkey,
-              mint: rawAccount.mint,
-              owner: rawAccount.owner,
-              amount: rawAccount.amount,
-              delegate: rawAccount.delegateOption ? rawAccount.delegate : null,
-              delegatedAmount: rawAccount.delegatedAmount,
+              mint: new PublicKey(rawAccount.mint),
+              owner: new PublicKey(rawAccount.owner),
+              amount: u64.fromBuffer(rawAccount.amount),
+              delegate: rawAccount.delegateOption
+                ? new PublicKey(rawAccount.delegate)
+                : null,
+              delegatedAmount: rawAccount.delegateOption
+                ? new u64(0)
+                : u64.fromBuffer(rawAccount.delegatedAmount),
               isInitialized: rawAccount.state !== AccountState.Uninitialized,
               isFrozen: rawAccount.state === AccountState.Frozen,
               isNative: !!rawAccount.isNativeOption,
               rentExemptReserve: rawAccount.isNativeOption
-                ? rawAccount.isNative
+                ? u64.fromBuffer(rawAccount.isNative)
                 : null,
               closeAuthority: rawAccount.closeAuthorityOption
-                ? rawAccount.closeAuthority
+                ? new PublicKey(rawAccount.closeAuthority)
                 : null,
             });
             setSlotUpdated(context.slot);
@@ -165,16 +172,16 @@ export function useLiveSplMint(
         token.publicKey,
         (accountInfo, context) => {
           try {
-            const rawMint = MintLayout.decode(accountInfo.data);
+            const rawMint = MintLayout.decode(Buffer.from(accountInfo.data));
             setMint({
               mintAuthority: rawMint.mintAuthorityOption
-                ? rawMint.mintAuthority
+                ? new PublicKey(rawMint.mintAuthority)
                 : null,
-              supply: rawMint.supply,
+              supply: u64.fromBuffer(rawMint.supply),
               decimals: rawMint.decimals,
-              isInitialized: rawMint.isInitialized,
+              isInitialized: rawMint.isInitialized != 0,
               freezeAuthority: rawMint.freezeAuthorityOption
-                ? rawMint.freezeAuthority
+                ? new PublicKey(rawMint.freezeAuthority)
                 : null,
             });
             setSlotUpdated(context.slot);
