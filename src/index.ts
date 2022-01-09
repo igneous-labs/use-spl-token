@@ -259,7 +259,7 @@ export function useLiveSplMint(
   };
 }
 
-export type UseATAResult = {
+export type UseFindATAResult = {
   accountPubkey?: PublicKey;
   error?: string;
 };
@@ -268,7 +268,7 @@ export function useFindATA(
   token: Token | null | undefined,
   owner: PublicKey | null | undefined,
   allowOwnerOffCurve?: boolean
-): UseATAResult {
+): UseFindATAResult {
   const [accountPubkey, setAccountPubkey] = useState<PublicKey | undefined>();
   const [error, setError] = useState<string | undefined>();
 
@@ -287,7 +287,7 @@ export function useFindATA(
     );
     promise.then(setAccountPubkey).catch((e: Error) => setError(e.message));
     return cancel;
-  }, [token]);
+  }, [token, owner, allowOwnerOffCurve]);
 
   return {
     accountPubkey,
