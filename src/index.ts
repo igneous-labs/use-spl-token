@@ -100,49 +100,46 @@ export function useLiveSplTokenAccount(
   }, [token, accountPubkey]);
 
   useEffect(() => {
-    let listener: number = 0;
-
-    if (account && accountPubkey && connection) {
-      listener = connection.onAccountChange(
-        accountPubkey,
-        (accountInfo, context) => {
-          try {
-            const rawAccount = AccountLayout.decode(
-              Buffer.from(accountInfo.data)
-            );
-            setAccount({
-              address: accountPubkey,
-              mint: new PublicKey(rawAccount.mint),
-              owner: new PublicKey(rawAccount.owner),
-              amount: u64.fromBuffer(rawAccount.amount),
-              delegate: rawAccount.delegateOption
-                ? new PublicKey(rawAccount.delegate)
-                : null,
-              delegatedAmount: rawAccount.delegateOption
-                ? new u64(0)
-                : u64.fromBuffer(rawAccount.delegatedAmount),
-              isInitialized: rawAccount.state !== AccountState.Uninitialized,
-              isFrozen: rawAccount.state === AccountState.Frozen,
-              isNative: !!rawAccount.isNativeOption,
-              rentExemptReserve: rawAccount.isNativeOption
-                ? u64.fromBuffer(rawAccount.isNative)
-                : null,
-              closeAuthority: rawAccount.closeAuthorityOption
-                ? new PublicKey(rawAccount.closeAuthority)
-                : null,
-            });
-            setSlotUpdated(context.slot);
-          } catch (e) {
-            setError((e as Error).message);
-          }
-        }
-      );
+    if (!account || !accountPubkey || !connection) {
+      return;
     }
+    const listener = connection.onAccountChange(
+      accountPubkey,
+      (accountInfo, context) => {
+        try {
+          const rawAccount = AccountLayout.decode(
+            Buffer.from(accountInfo.data)
+          );
+          setAccount({
+            address: accountPubkey,
+            mint: new PublicKey(rawAccount.mint),
+            owner: new PublicKey(rawAccount.owner),
+            amount: u64.fromBuffer(rawAccount.amount),
+            delegate: rawAccount.delegateOption
+              ? new PublicKey(rawAccount.delegate)
+              : null,
+            delegatedAmount: rawAccount.delegateOption
+              ? new u64(0)
+              : u64.fromBuffer(rawAccount.delegatedAmount),
+            isInitialized: rawAccount.state !== AccountState.Uninitialized,
+            isFrozen: rawAccount.state === AccountState.Frozen,
+            isNative: !!rawAccount.isNativeOption,
+            rentExemptReserve: rawAccount.isNativeOption
+              ? u64.fromBuffer(rawAccount.isNative)
+              : null,
+            closeAuthority: rawAccount.closeAuthorityOption
+              ? new PublicKey(rawAccount.closeAuthority)
+              : null,
+          });
+          setSlotUpdated(context.slot);
+        } catch (e) {
+          setError((e as Error).message);
+        }
+      }
+    );
 
     return () => {
-      if (listener && connection) {
-        connection.removeAccountChangeListener(listener);
-      }
+      connection.removeAccountChangeListener(listener);
     };
   }, [account]);
 
@@ -216,37 +213,35 @@ export function useLiveSplMint(
   }, [token]);
 
   useEffect(() => {
-    let listener: number;
-
-    if (mint && token && connection) {
-      listener = connection.onAccountChange(
-        token.publicKey,
-        (accountInfo, context) => {
-          try {
-            const rawMint = MintLayout.decode(Buffer.from(accountInfo.data));
-            setMint({
-              mintAuthority: rawMint.mintAuthorityOption
-                ? new PublicKey(rawMint.mintAuthority)
-                : null,
-              supply: u64.fromBuffer(rawMint.supply),
-              decimals: rawMint.decimals,
-              isInitialized: rawMint.isInitialized != 0,
-              freezeAuthority: rawMint.freezeAuthorityOption
-                ? new PublicKey(rawMint.freezeAuthority)
-                : null,
-            });
-            setSlotUpdated(context.slot);
-          } catch (e) {
-            setError((e as Error).message);
-          }
-        }
-      );
+    if (!mint || !token || !connection) {
+      return;
     }
 
-    return () => {
-      if (listener && connection) {
-        connection.removeAccountChangeListener(listener);
+    const listener = connection.onAccountChange(
+      token.publicKey,
+      (accountInfo, context) => {
+        try {
+          const rawMint = MintLayout.decode(Buffer.from(accountInfo.data));
+          setMint({
+            mintAuthority: rawMint.mintAuthorityOption
+              ? new PublicKey(rawMint.mintAuthority)
+              : null,
+            supply: u64.fromBuffer(rawMint.supply),
+            decimals: rawMint.decimals,
+            isInitialized: rawMint.isInitialized != 0,
+            freezeAuthority: rawMint.freezeAuthorityOption
+              ? new PublicKey(rawMint.freezeAuthority)
+              : null,
+          });
+          setSlotUpdated(context.slot);
+        } catch (e) {
+          setError((e as Error).message);
+        }
       }
+    );
+
+    return () => {
+      connection.removeAccountChangeListener(listener);
     };
   }, [mint]);
 
