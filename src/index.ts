@@ -11,27 +11,29 @@ import {
 import { Connection, PublicKey } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 
+type CancelablePromise<T> = {
+  promise: Promise<T>;
+  cancel: () => void;
+};
+
+const makeCancelable = <T>(promise: Promise<T>): CancelablePromise<T> => {
+  let rejectFn;
+  const p: Promise<T> = new Promise((resolve, reject) => {
+    rejectFn = reject;
+    Promise.resolve(promise).then(resolve).catch(reject);
+  });
+  return {
+    promise: p,
+    cancel: () => {
+      rejectFn({ canceled: true });
+    },
+  };
+};
+
 type UseSplTokenAccountResult = {
   loading: boolean;
   account?: AccountInfo;
   error?: string;
-};
-
-type CancellablePromise<T> = Promise<T> & {
-  cancel: () => void;
-};
-
-const makeCancelable = <T>(promise: Promise<T>) => {
-  let rejectFn;
-  const wrappedPromise = new Promise((resolve, reject) => {
-    rejectFn = reject;
-    Promise.resolve(promise).then(resolve).catch(reject);
-  }) as CancellablePromise<T>;
-
-  wrappedPromise.cancel = () => {
-    rejectFn({ canceled: true });
-  };
-  return wrappedPromise;
 };
 
 export function useSplTokenAccount(
@@ -49,12 +51,14 @@ export function useSplTokenAccount(
     setLoading(true);
     setAccount(undefined);
     setError(undefined);
-    const promise = makeCancelable(token.getAccountInfo(accountPubkey));
+    const { promise, cancel } = makeCancelable(
+      token.getAccountInfo(accountPubkey)
+    );
     promise
       .then(setAccount)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-    return promise.cancel;
+    return cancel;
   }, [token, accountPubkey]);
 
   return {
@@ -91,12 +95,14 @@ export function useLiveSplTokenAccount(
     setLoading(true);
     setAccount(undefined);
     setError(undefined);
-    const promise = makeCancelable(token.getAccountInfo(accountPubkey));
+    const { promise, cancel } = makeCancelable(
+      token.getAccountInfo(accountPubkey)
+    );
     promise
       .then(setAccount)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-    return promise.cancel;
+    return cancel;
   }, [token, accountPubkey]);
 
   useEffect(() => {
@@ -169,12 +175,12 @@ export function useSplMint(token: Token | null | undefined): UseSplMintResult {
     setLoading(true);
     setMint(undefined);
     setError(undefined);
-    const promise = makeCancelable(token.getMintInfo());
+    const { promise, cancel } = makeCancelable(token.getMintInfo());
     promise
       .then(setMint)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-    return promise.cancel;
+    return cancel;
   }, [token]);
 
   return {
@@ -204,12 +210,12 @@ export function useLiveSplMint(
     setLoading(true);
     setMint(undefined);
     setError(undefined);
-    const promise = makeCancelable(token.getMintInfo());
+    const { promise, cancel } = makeCancelable(token.getMintInfo());
     promise
       .then(setMint)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-    return promise.cancel;
+    return cancel;
   }, [token]);
 
   useEffect(() => {
@@ -270,7 +276,7 @@ export function useFindATA(
     if (!token || !owner) {
       return;
     }
-    const promise = makeCancelable(
+    const { promise, cancel } = makeCancelable(
       Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -280,7 +286,7 @@ export function useFindATA(
       )
     );
     promise.then(setAccountPubkey).catch((e: Error) => setError(e.message));
-    return promise.cancel;
+    return cancel;
   }, [token]);
 
   return {
