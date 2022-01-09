@@ -74,21 +74,27 @@ export function useLiveSplTokenAccount(
   accountPubkey: PublicKey,
   connection: Connection
 ): UseLiveSplTokenAccountResult {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<AccountInfo | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [slotUpdated, setSlotUpdated] = useState<number | undefined>();
 
   useEffect(() => {
-    let listener: number;
+    setLoading(true);
+    setAccount(undefined);
+    setError(undefined);
+    const promise = makeCancelable(token.getAccountInfo(accountPubkey));
+    promise
+      .then(setAccount)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+    return promise.cancel;
+  }, [token, accountPubkey]);
 
-    if (loading) {
-      token
-        .getAccountInfo(accountPubkey)
-        .then(setAccount)
-        .catch((e: Error) => setError(e.message))
-        .finally(() => setLoading(false));
-    } else if (account) {
+  useEffect(() => {
+    let listener: number = 0;
+
+    if (account) {
       listener = connection.onAccountChange(
         accountPubkey,
         (accountInfo, context) => {
@@ -130,7 +136,7 @@ export function useLiveSplTokenAccount(
         connection.removeAccountChangeListener(listener);
       }
     };
-  }, [loading]);
+  }, [account]);
 
   return {
     loading,
@@ -152,12 +158,16 @@ export function useSplMint(token: Token): UseSplMintResult {
   const [error, setError] = useState<string | undefined>();
 
   useEffect(() => {
-    token
-      .getMintInfo()
+    setLoading(true);
+    setMint(undefined);
+    setError(undefined);
+    const promise = makeCancelable(token.getMintInfo());
+    promise
       .then(setMint)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+    return promise.cancel;
+  }, [token]);
 
   return {
     loading,
@@ -180,15 +190,21 @@ export function useLiveSplMint(
   const [slotUpdated, setSlotUpdated] = useState<number | undefined>();
 
   useEffect(() => {
+    setLoading(true);
+    setMint(undefined);
+    setError(undefined);
+    const promise = makeCancelable(token.getMintInfo());
+    promise
+      .then(setMint)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+    return promise.cancel;
+  }, [token]);
+
+  useEffect(() => {
     let listener: number;
 
-    if (loading) {
-      token
-        .getMintInfo()
-        .then(setMint)
-        .catch((e: Error) => setError(e.message))
-        .finally(() => setLoading(false));
-    } else if (mint) {
+    if (mint) {
       listener = connection.onAccountChange(
         token.publicKey,
         (accountInfo, context) => {
@@ -218,7 +234,7 @@ export function useLiveSplMint(
         connection.removeAccountChangeListener(listener);
       }
     };
-  }, [loading]);
+  }, [mint]);
 
   return {
     loading,
