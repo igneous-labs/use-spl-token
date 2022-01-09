@@ -1,9 +1,11 @@
 import {
   AccountInfo,
   AccountLayout,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   MintInfo,
   MintLayout,
   Token,
+  TOKEN_PROGRAM_ID,
   u64,
 } from "@solana/spl-token";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -33,14 +35,17 @@ const makeCancelable = <T>(promise: Promise<T>) => {
 };
 
 export function useSplTokenAccount(
-  token: Token,
-  accountPubkey: PublicKey
+  token: Token | null | undefined,
+  accountPubkey: PublicKey | null | undefined
 ): UseSplTokenAccountResult {
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<AccountInfo | undefined>();
   const [error, setError] = useState<string | undefined>();
 
   useEffect(() => {
+    if (!token || !accountPubkey) {
+      return;
+    }
     setLoading(true);
     setAccount(undefined);
     setError(undefined);
@@ -70,9 +75,9 @@ enum AccountState {
 }
 
 export function useLiveSplTokenAccount(
-  token: Token,
-  accountPubkey: PublicKey,
-  connection: Connection
+  token: Token | null | undefined,
+  accountPubkey: PublicKey | null | undefined,
+  connection: Connection | null | undefined
 ): UseLiveSplTokenAccountResult {
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<AccountInfo | undefined>();
@@ -80,6 +85,9 @@ export function useLiveSplTokenAccount(
   const [slotUpdated, setSlotUpdated] = useState<number | undefined>();
 
   useEffect(() => {
+    if (!token || !accountPubkey) {
+      return;
+    }
     setLoading(true);
     setAccount(undefined);
     setError(undefined);
@@ -94,7 +102,7 @@ export function useLiveSplTokenAccount(
   useEffect(() => {
     let listener: number = 0;
 
-    if (account) {
+    if (account && accountPubkey && connection) {
       listener = connection.onAccountChange(
         accountPubkey,
         (accountInfo, context) => {
@@ -132,7 +140,7 @@ export function useLiveSplTokenAccount(
     }
 
     return () => {
-      if (listener) {
+      if (listener && connection) {
         connection.removeAccountChangeListener(listener);
       }
     };
@@ -152,12 +160,15 @@ type UseSplMintResult = {
   error?: string;
 };
 
-export function useSplMint(token: Token): UseSplMintResult {
+export function useSplMint(token: Token | null | undefined): UseSplMintResult {
   const [loading, setLoading] = useState(true);
   const [mint, setMint] = useState<MintInfo | undefined>();
   const [error, setError] = useState<string | undefined>();
 
   useEffect(() => {
+    if (!token) {
+      return;
+    }
     setLoading(true);
     setMint(undefined);
     setError(undefined);
@@ -181,8 +192,8 @@ type UseLiveSplMintResult = UseSplMintResult & {
 };
 
 export function useLiveSplMint(
-  token: Token,
-  connection: Connection
+  token: Token | null | undefined,
+  connection: Connection | null | undefined
 ): UseLiveSplMintResult {
   const [loading, setLoading] = useState(true);
   const [mint, setMint] = useState<MintInfo | undefined>();
@@ -190,6 +201,9 @@ export function useLiveSplMint(
   const [slotUpdated, setSlotUpdated] = useState<number | undefined>();
 
   useEffect(() => {
+    if (!token) {
+      return;
+    }
     setLoading(true);
     setMint(undefined);
     setError(undefined);
@@ -204,7 +218,7 @@ export function useLiveSplMint(
   useEffect(() => {
     let listener: number;
 
-    if (mint) {
+    if (mint && token && connection) {
       listener = connection.onAccountChange(
         token.publicKey,
         (accountInfo, context) => {
@@ -230,7 +244,7 @@ export function useLiveSplMint(
     }
 
     return () => {
-      if (listener) {
+      if (listener && connection) {
         connection.removeAccountChangeListener(listener);
       }
     };
@@ -241,5 +255,80 @@ export function useLiveSplMint(
     mint,
     error,
     slotUpdated,
+  };
+}
+
+export type UseATAResult = {
+  accountPubkey?: PublicKey;
+  error?: string;
+};
+
+export function useFindATA(
+  token: Token | null | undefined,
+  owner: PublicKey | null | undefined,
+  allowOwnerOffCurve?: boolean
+): UseATAResult {
+  const [accountPubkey, setAccountPubkey] = useState<PublicKey | undefined>();
+  const [error, setError] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!token || !owner) {
+      return;
+    }
+    const promise = makeCancelable(
+      Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        token.publicKey,
+        owner,
+        allowOwnerOffCurve
+      )
+    );
+    promise.then(setAccountPubkey).catch((e: Error) => setError(e.message));
+    return promise.cancel;
+  }, [token]);
+
+  return {
+    accountPubkey,
+    error,
+  };
+}
+
+export function useSplATA(
+  token: Token | null | undefined,
+  owner: PublicKey | null | undefined,
+  allowOwnerOffCurve?: boolean
+): UseSplTokenAccountResult {
+  const { accountPubkey, error: pdaError } = useFindATA(
+    token,
+    owner,
+    allowOwnerOffCurve
+  );
+  const { error, ...rest } = useSplTokenAccount(token, accountPubkey);
+  return {
+    error: pdaError ?? error,
+    ...rest,
+  };
+}
+
+export function useLiveSplATA(
+  token: Token | null | undefined,
+  owner: PublicKey | null | undefined,
+  connection: Connection | null | undefined,
+  allowOwnerOffCurve?: boolean
+): UseLiveSplTokenAccountResult {
+  const { accountPubkey, error: pdaError } = useFindATA(
+    token,
+    owner,
+    allowOwnerOffCurve
+  );
+  const { error, ...rest } = useLiveSplTokenAccount(
+    token,
+    accountPubkey,
+    connection
+  );
+  return {
+    error: pdaError ?? error,
+    ...rest,
   };
 }
