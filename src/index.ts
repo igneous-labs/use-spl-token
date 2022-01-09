@@ -30,6 +30,11 @@ const makeCancelable = <T>(promise: Promise<T>): CancelablePromise<T> => {
   };
 };
 
+type UpdatedAccount<T> = {
+  account: T;
+  slotUpdated: number;
+};
+
 type UseSplTokenAccountResult = {
   loading: boolean;
   account?: AccountInfo;
@@ -83,30 +88,21 @@ export function useLiveSplTokenAccount(
   accountPubkey: PublicKey | null | undefined,
   connection: Connection | null | undefined
 ): UseLiveSplTokenAccountResult {
-  const [loading, setLoading] = useState(false);
-  const [account, setAccount] = useState<AccountInfo | undefined>();
+  const {
+    loading,
+    account: fetchedAccount,
+    error: fetchError,
+  } = useSplTokenAccount(token, accountPubkey);
+
+  const [updatedAccount, setUpdatedAccount] = useState<
+    UpdatedAccount<AccountInfo> | undefined
+  >();
   const [error, setError] = useState<string | undefined>();
-  const [slotUpdated, setSlotUpdated] = useState<number | undefined>();
 
   useEffect(() => {
-    if (!token || !accountPubkey) {
-      return;
-    }
-    setLoading(true);
-    setAccount(undefined);
     setError(undefined);
-    const { promise, cancel } = makeCancelable(
-      token.getAccountInfo(accountPubkey)
-    );
-    promise
-      .then(setAccount)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-    return cancel;
-  }, [token, accountPubkey]);
-
-  useEffect(() => {
-    if (!account || !accountPubkey || !connection) {
+    if (!fetchedAccount || !accountPubkey || !connection) {
+      setUpdatedAccount(undefined);
       return;
     }
     const listener = connection.onAccountChange(
@@ -116,7 +112,7 @@ export function useLiveSplTokenAccount(
           const rawAccount = AccountLayout.decode(
             Buffer.from(accountInfo.data)
           );
-          setAccount({
+          const account = {
             address: accountPubkey,
             mint: new PublicKey(rawAccount.mint),
             owner: new PublicKey(rawAccount.owner),
@@ -136,8 +132,11 @@ export function useLiveSplTokenAccount(
             closeAuthority: rawAccount.closeAuthorityOption
               ? new PublicKey(rawAccount.closeAuthority)
               : null,
+          };
+          setUpdatedAccount({
+            account,
+            slotUpdated: context.slot,
           });
-          setSlotUpdated(context.slot);
         } catch (e) {
           setError((e as Error).message);
         }
@@ -147,13 +146,13 @@ export function useLiveSplTokenAccount(
     return () => {
       connection.removeAccountChangeListener(listener);
     };
-  }, [account]);
+  }, [fetchedAccount]);
 
   return {
     loading,
-    account,
-    error,
-    slotUpdated,
+    account: updatedAccount ? updatedAccount.account : fetchedAccount,
+    error: error ?? fetchError,
+    slotUpdated: updatedAccount?.slotUpdated,
   };
 }
 
@@ -198,28 +197,16 @@ export function useLiveSplMint(
   token: Token | null | undefined,
   connection: Connection | null | undefined
 ): UseLiveSplMintResult {
-  const [loading, setLoading] = useState(true);
-  const [mint, setMint] = useState<MintInfo | undefined>();
+  const { loading, mint: fetchedMint, error: fetchError } = useSplMint(token);
   const [error, setError] = useState<string | undefined>();
-  const [slotUpdated, setSlotUpdated] = useState<number | undefined>();
+  const [updatedMint, setUpdatedMint] = useState<
+    UpdatedAccount<MintInfo> | undefined
+  >();
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
-    setLoading(true);
-    setMint(undefined);
     setError(undefined);
-    const { promise, cancel } = makeCancelable(token.getMintInfo());
-    promise
-      .then(setMint)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-    return cancel;
-  }, [token]);
-
-  useEffect(() => {
-    if (!mint || !token || !connection) {
+    if (!fetchedMint || !token || !connection) {
+      setUpdatedMint(undefined);
       return;
     }
 
@@ -228,7 +215,7 @@ export function useLiveSplMint(
       (accountInfo, context) => {
         try {
           const rawMint = MintLayout.decode(Buffer.from(accountInfo.data));
-          setMint({
+          const mint = {
             mintAuthority: rawMint.mintAuthorityOption
               ? new PublicKey(rawMint.mintAuthority)
               : null,
@@ -238,8 +225,11 @@ export function useLiveSplMint(
             freezeAuthority: rawMint.freezeAuthorityOption
               ? new PublicKey(rawMint.freezeAuthority)
               : null,
+          };
+          setUpdatedMint({
+            account: mint,
+            slotUpdated: context.slot,
           });
-          setSlotUpdated(context.slot);
         } catch (e) {
           setError((e as Error).message);
         }
@@ -249,13 +239,13 @@ export function useLiveSplMint(
     return () => {
       connection.removeAccountChangeListener(listener);
     };
-  }, [mint]);
+  }, [fetchedMint]);
 
   return {
     loading,
-    mint,
-    error,
-    slotUpdated,
+    mint: updatedMint ? updatedMint.account : fetchedMint,
+    error: error ?? fetchError,
+    slotUpdated: updatedMint?.slotUpdated,
   };
 }
 
