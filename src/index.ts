@@ -295,11 +295,15 @@ export function useFindATA(
   };
 }
 
+export type UseSplATAResult = UseSplTokenAccountResult & {
+  accountPubkey?: PublicKey;
+};
+
 export function useSplATA(
   token: Token | null | undefined,
   owner: PublicKey | null | undefined,
   allowOwnerOffCurve?: boolean
-): UseSplTokenAccountResult {
+): UseSplATAResult {
   const { accountPubkey, error: pdaError } = useFindATA(
     token,
     owner,
@@ -308,16 +312,21 @@ export function useSplATA(
   const { error, ...rest } = useSplTokenAccount(token, accountPubkey);
   return {
     error: pdaError ?? error,
+    accountPubkey,
     ...rest,
   };
 }
+
+export type useLiveSplATAResult = UseLiveSplTokenAccountResult & {
+  accountPubkey?: PublicKey;
+};
 
 export function useLiveSplATA(
   token: Token | null | undefined,
   owner: PublicKey | null | undefined,
   connection: Connection | null | undefined,
   allowOwnerOffCurve?: boolean
-): UseLiveSplTokenAccountResult {
+): useLiveSplATAResult {
   const { accountPubkey, error: pdaError } = useFindATA(
     token,
     owner,
@@ -330,6 +339,7 @@ export function useLiveSplATA(
   );
   return {
     error: pdaError ?? error,
+    accountPubkey,
     ...rest,
   };
 }
