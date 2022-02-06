@@ -8,13 +8,13 @@ import {
   TOKEN_PROGRAM_ID,
   u64,
 } from "@solana/spl-token";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { useEffect, useState } from "react";
+import { Connection, PublicKey, Signer } from "@solana/web3.js";
+import { useEffect, useMemo, useState } from "react";
 
-type CancelablePromise<T> = {
+interface CancelablePromise<T> {
   promise: Promise<T>;
   cancel: () => void;
-};
+}
 
 const makeCancelable = <T>(promise: Promise<T>): CancelablePromise<T> => {
   let rejectFn;
@@ -30,11 +30,27 @@ const makeCancelable = <T>(promise: Promise<T>): CancelablePromise<T> => {
   };
 };
 
-type UseSplTokenAccountResult = {
+export function useSplToken(
+  connection: Connection | null | undefined,
+  mint: PublicKey | null | undefined,
+  payer?: Signer | null | undefined
+): Token | undefined {
+  return useMemo(() => {
+    if (!connection || !mint) return undefined;
+    return new Token(
+      connection,
+      mint,
+      TOKEN_PROGRAM_ID,
+      payer as unknown as Signer
+    );
+  }, [connection, mint, payer]);
+}
+
+interface UseSplTokenAccountResult {
   loading: boolean;
   account?: AccountInfo;
   error?: string;
-};
+}
 
 export function useSplTokenAccount(
   token: Token | null | undefined,
@@ -68,9 +84,9 @@ export function useSplTokenAccount(
   };
 }
 
-type UseLiveSplTokenAccountResult = UseSplTokenAccountResult & {
+interface UseLiveSplTokenAccountResult extends UseSplTokenAccountResult {
   slotUpdated?: number;
-};
+}
 
 enum AccountState {
   Uninitialized = 0,
@@ -157,11 +173,11 @@ export function useLiveSplTokenAccount(
   };
 }
 
-type UseSplMintResult = {
+interface UseSplMintResult {
   loading: boolean;
   mint?: MintInfo;
   error?: string;
-};
+}
 
 export function useSplMint(token: Token | null | undefined): UseSplMintResult {
   const [loading, setLoading] = useState(true);
@@ -190,9 +206,9 @@ export function useSplMint(token: Token | null | undefined): UseSplMintResult {
   };
 }
 
-type UseLiveSplMintResult = UseSplMintResult & {
+interface UseLiveSplMintResult extends UseSplMintResult {
   slotUpdated?: number;
-};
+}
 
 export function useLiveSplMint(
   token: Token | null | undefined,
@@ -259,10 +275,10 @@ export function useLiveSplMint(
   };
 }
 
-export type UseFindATAResult = {
+export interface UseFindATAResult {
   accountPubkey?: PublicKey;
   error?: string;
-};
+}
 
 export function useFindATA(
   token: Token | null | undefined,
@@ -295,9 +311,9 @@ export function useFindATA(
   };
 }
 
-export type UseSplATAResult = UseSplTokenAccountResult & {
+export interface UseSplATAResult extends UseSplTokenAccountResult {
   accountPubkey?: PublicKey;
-};
+}
 
 export function useSplATA(
   token: Token | null | undefined,
@@ -317,9 +333,9 @@ export function useSplATA(
   };
 }
 
-export type useLiveSplATAResult = UseLiveSplTokenAccountResult & {
+export interface useLiveSplATAResult extends UseLiveSplTokenAccountResult {
   accountPubkey?: PublicKey;
-};
+}
 
 export function useLiveSplATA(
   token: Token | null | undefined,
