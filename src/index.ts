@@ -122,7 +122,7 @@ export function useLiveSplTokenAccount(
   }, [token, accountPubkey]);
 
   useEffect(() => {
-    if (!account || !accountPubkey || !connection) {
+    if (!accountPubkey || !connection) {
       return;
     }
     const listener = connection.onAccountChange(
@@ -163,7 +163,7 @@ export function useLiveSplTokenAccount(
     return () => {
       connection.removeAccountChangeListener(listener);
     };
-  }, [account]);
+  }, [accountPubkey, connection]);
 
   return {
     loading,
@@ -235,7 +235,7 @@ export function useLiveSplMint(
   }, [token]);
 
   useEffect(() => {
-    if (!mint || !token || !connection) {
+    if (!token || !connection) {
       return;
     }
 
@@ -265,7 +265,7 @@ export function useLiveSplMint(
     return () => {
       connection.removeAccountChangeListener(listener);
     };
-  }, [mint]);
+  }, [token, connection]);
 
   return {
     loading,
